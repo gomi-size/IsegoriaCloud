@@ -76,7 +76,7 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <version>${spring-boot.version}</version>
                 <configuration>
-                    <mainClass>isegoriamodel.IsegoriaModelApplication</mainClass>
+                    <mainClass>com.ruwei.model.IsegoriaModelApplication</mainClass>
                     <skip>true</skip>
                 </configuration>
                 <executions>

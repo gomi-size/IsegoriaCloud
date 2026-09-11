@@ -1,4 +1,4 @@
-package com.ruwei.domain.vo;
+package com.ruwei.model.domain.vo;
 
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;

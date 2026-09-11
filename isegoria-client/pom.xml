@@ -2,16 +2,20 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>com.ruwei</groupId>
     <artifactId>isegoria-client</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>isegoria-client</name>
-    <description>isegoria-client</description>
+    <description>Dubbo 内部服务契约（InnerXxxService 接口层）</description>
+    <parent>
+        <groupId>com.ruwei</groupId>
+        <artifactId>isegoria-cloud</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
     <properties>
         <java.version>1.8</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <spring-boot.version>2.6.13</spring-boot.version>
+        <spring-boot.version>3.5.3</spring-boot.version>
     </properties>
     <dependencies>
         <dependency>
@@ -23,6 +27,10 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.ruwei</groupId>
+            <artifactId>isegoria-model</artifactId>
         </dependency>
     </dependencies>
     <dependencyManagement>

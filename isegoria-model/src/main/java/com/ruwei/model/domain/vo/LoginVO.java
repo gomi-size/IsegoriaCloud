@@ -1,4 +1,4 @@
-package com.ruwei.domain.vo;
+package com.ruwei.model.domain.vo;
 
 
 /**

@@ -1,6 +1,5 @@
-package com.ruwei.domain.dto;
+package com.ruwei.model.domain.dto;
 
-import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
 
 import java.io.Serializable;

@@ -1,4 +1,4 @@
-package com.ruwei.domain.empty;
+package com.ruwei.model.domain.empty;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
@@ -19,7 +19,7 @@ public class Auditlog implements Serializable {
     /**
      * 
      */
-    @TableId(type = IdType.AUTO)
+    @TableId(type = IdType.ASSIGN_ID)
     private Long id;
 
     /**

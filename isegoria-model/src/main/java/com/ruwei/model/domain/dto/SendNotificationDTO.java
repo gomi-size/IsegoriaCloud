@@ -1,6 +1,5 @@
-package com.ruwei.domain.dto;
+package com.ruwei.model.domain.dto;
 
-import lombok.Builder;
 import lombok.Data;
 
 import java.io.Serializable;

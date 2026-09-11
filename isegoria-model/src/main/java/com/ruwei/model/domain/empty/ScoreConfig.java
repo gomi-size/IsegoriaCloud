@@ -1,12 +1,9 @@
-package com.ruwei.domain.empty;
+package com.ruwei.model.domain.empty;
 
-import com.baomidou.mybatisplus.annotation.FieldStrategy;
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
-import java.util.Date;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
+
+import java.util.Date;
 
 /**
  * 热度评分参数配置实体，对应数据库表 {@code score_config}。

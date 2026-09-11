@@ -1,4 +1,4 @@
-package com.ruwei.domain.empty;
+package com.ruwei.model.domain.empty;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;

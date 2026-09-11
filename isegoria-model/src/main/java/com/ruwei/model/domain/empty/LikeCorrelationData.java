@@ -1,4 +1,4 @@
-package com.ruwei.domain.empty;
+package com.ruwei.model.domain.empty;
 
 import com.ruwei.domain.dto.LikePersistMessage;
 import lombok.Getter;

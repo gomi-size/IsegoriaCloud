@@ -1,15 +1,14 @@
-package com.ruwei.domain.vo;
+package com.ruwei.model.domain.vo;
 
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import com.ruwei.domain.dto.ContentBlock;
 import lombok.Data;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
-
-import com.ruwei.domain.dto.ContentBlock;
 
 /**
  * 帖子对外展示 VO（创建 / 详情 / 列表复用）。

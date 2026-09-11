@@ -1,4 +1,4 @@
-package com.ruwei.domain.Enum;
+package com.ruwei.model.domain.enums;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

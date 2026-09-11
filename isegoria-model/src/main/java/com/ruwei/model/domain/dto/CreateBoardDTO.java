@@ -1,4 +1,4 @@
-package com.ruwei.domain.dto;
+package com.ruwei.model.domain.dto;
 
 
 import lombok.Data;

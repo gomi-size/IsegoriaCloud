@@ -1,11 +1,11 @@
-package com.ruwei.domain.empty;
+package com.ruwei.model.domain.empty;
 
 import com.baomidou.mybatisplus.annotation.*;
+import lombok.Data;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.Date;
-import lombok.Data;
 
 /**
  * 帖子/笔记表(推荐系统物料主表)

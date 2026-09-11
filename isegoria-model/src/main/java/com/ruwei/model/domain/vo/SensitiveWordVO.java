@@ -1,10 +1,10 @@
-package com.ruwei.domain.vo;
+package com.ruwei.model.domain.vo;
 
-import com.baomidou.mybatisplus.annotation.*;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
+import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
 
 import java.util.Date;
-
 
 
 @Data

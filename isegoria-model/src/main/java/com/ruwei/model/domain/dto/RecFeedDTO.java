@@ -1,10 +1,8 @@
-package com.ruwei.domain.dto;
+package com.ruwei.model.domain.dto;
 
-import com.ruwei.domain.vo.PostBrowseVO;
 import lombok.Data;
 
 import java.io.Serializable;
-import java.util.List;
 
 /**
  * 推荐流请求（游标分页）。
