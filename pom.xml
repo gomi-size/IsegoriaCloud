@@ -49,8 +49,6 @@
                 <scope>import</scope>
             </dependency>
 
-            <!-- Sa-Token BOM：锁定所有 sa-token-* 模块为同一版本。
-                 1.41.0 起修复 JDK 17 下 redis-jackson 序列化会话时的反射兼容问题（InaccessibleObjectException） -->
             <dependency>
                 <groupId>cn.dev33</groupId>
                 <artifactId>sa-token-dependencies</artifactId>
@@ -96,6 +94,19 @@
                 <groupId>com.qcloud</groupId>
                 <artifactId>cos_api</artifactId>
                 <version>${cos.version}</version>
+            </dependency>
+
+            <!--文档-->
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+            <!--nacos-->
+            <dependency>
+                <groupId>com.alibaba.nacos</groupId>
+                <artifactId>nacos-client</artifactId>
+                <version>${nacos-client.version}</version>
             </dependency>
 
             <!-- ===== 工程内模块（P0：公共组件单模块，包内按 core/web/mybatis 分层） ===== -->

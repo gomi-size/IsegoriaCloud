@@ -11,17 +11,135 @@
 
     <artifactId>isegoria-notify</artifactId>
     <name>isegoria-notify</name>
-    <description>站内通知与实时推送相关的服务类</description>
+    <description>通知服务：事件消费 + 站内通知 + WebSocket 实时推送（8205 / dubbo 50055）</description>
 
     <dependencies>
+        <!-- 公共 + 契约 -->
+        <dependency>
+            <groupId>com.ruwei</groupId>
+            <artifactId>isegoria-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.ruwei</groupId>
+            <artifactId>isegoria-client</artifactId>
+        </dependency>
+
+        <!-- Web / 校验 / AOP -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
+        <!-- Redis（Sa-Token 会话 + 业务缓存） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <!-- MyBatis-Plus + MySQL -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-jsqlparser-4.9</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- MQ 事件总线（notify 是 8 个队列的消费方） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+
+        <!-- Dubbo：核心 starter + Nacos 注册中心客户端（缺后者则 nacos:// 注册 NoClassDefFoundError） -->
+        <dependency>
+            <groupId>org.apache.dubbo</groupId>
+            <artifactId>dubbo-spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.dubbo</groupId>
+            <artifactId>dubbo-nacos-spring-boot-starter</artifactId>
+        </dependency>
+        <!-- ⚠️ 必须显式声明 all-in-one 聚合件，否则运行期 NoClassDefFoundError。
+             原因：Dubbo 3.3.0 把包括 dubbo-common 在内的所有子模块在 pom 里全标成
+             optional=true，不会随 starter 传递进来；org.apache.dubbo.common.* 的类只存在于
+             dubbo-3.3.0.jar 里。而 dubbo-spring-boot-autoconfigure-compatible 的
+             DubboUtils.<clinit> 会直接调 SystemPropertyConfigUtils.getSystemProperty(...)，
+             该类只有 3.3.0 有（3.0.8 / 2.7.x 的 utils 包里没有）。
+             此前全靠 starter 的传递依赖（深度 3），极易被本地仓库里的老版本
+             dubbo-3.0.8.jar / 2.7.21.jar 抢走。显式声明后深度降为 1，
+             版本由父 POM 的 dubbo-bom 托管为 3.3.0。 -->
+        <dependency>
+            <groupId>org.apache.dubbo</groupId>
+            <artifactId>dubbo</artifactId>
+        </dependency>
+
+        <!-- WebSocket(STOMP)：通知实时推送，端点 /api/ws -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
+
+        <!-- 工具 / 文档 -->
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.xiaoymin</groupId>
+            <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>com.ruwei.notify.IsegoriaNotifyApplication</mainClass>
+                    <!-- 该配置仅对 mvn spring-boot:run 生效；IDEA 直接启动需在
+                         Run Configuration 的 VM options 里补同样的 add-opens 参数 -->
+                    <jvmArguments>
+                        --add-opens java.base/java.lang=ALL-UNNAMED
+                        --add-opens java.base/java.util=ALL-UNNAMED
+                        --add-opens java.base/java.io=ALL-UNNAMED
+                        --add-opens java.base/java.lang.reflect=ALL-UNNAMED
+                        --add-opens java.base/java.math=ALL-UNNAMED
+                    </jvmArguments>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>repackage</id>
+                        <goals><goal>repackage</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

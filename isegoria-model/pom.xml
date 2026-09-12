@@ -39,9 +39,5 @@
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
         </dependency>
-        <dependency>
-            <groupId>com.ruwei</groupId>
-            <artifactId>isegoria-common</artifactId>
-        </dependency>
     </dependencies>
 </project>

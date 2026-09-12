@@ -1,5 +1,119 @@
-# 应用服务 WEB 访问端口（rec 服务：8206）
-# 完整配置段（MySQL / Redis / RabbitMQ / Dubbo / Sa-Token / MyBatis-Plus / springdoc / cors
-# + spring.elasticsearch.uris 与 rec.* 精排参数，见 docs/phase2-六服务骨架.md §5.4）
 server:
-  port: 8206
+  port: 8201                # user=8201 post=8202 interaction=8203 social=8204 notify=8205 rec=8206
+  servlet:
+    context-path: /api
+  error:
+    include-stacktrace: always
+    include-message: always
+
+spring:
+  application:
+    name: isegoria-rec    # 与 dubbo.application.name 一致
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/frorum?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456         # 敏感配置建议后续移入 application-local.yml
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      database: 0
+      timeout: 5000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: root
+    password: 123456
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    listener:
+      simple:
+        acknowledge-mode: manual
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 1000ms
+          multiplier: 2.0
+  # es
+  elasticsearch:
+    uris: http://localhost:9200
+    connection-timeout: 3s
+    socket-timeout: 60s
+
+# ===== 跨域白名单（CorsConfig 读取；严禁 *，allowCredentials=true 下等同任意站点可带 Cookie） =====
+cors:
+  allowed-origins:
+    - http://localhost:3000
+    - http://localhost:5173
+    - http://localhost:5174
+    - http://127.0.0.1:3000
+
+# ===== Dubbo（六服务差异仅 protocol.port：50051~50056）=====
+dubbo:
+  application:
+    name: isegoria-rec
+  registry:
+    address: nacos://127.0.0.1:8848?username=nacos&password=nacos
+    register-mode: instance
+  protocol:
+    name: tri
+    port: 50051
+  consumer:
+    timeout: 5000
+    check: false            # 启动不强制依赖方在线，避免启动顺序耦合
+  provider:
+    timeout: 5000
+
+# ===== Sa-Token（六服务必须逐字一致——共享登录态的根基）=====
+sa-token:
+  token-name: isegoria
+  timeout: 7200
+  active-timeout: 1800
+  is-concurrent: true
+  is-share: true
+  token-style: uuid
+  cookie:
+    path: /
+    secure: false
+    http-only: true
+    same-site: Lax
+
+# ===== MyBatis-Plus（六服务一致；注意 global-config 与 configuration 平级，勿缩进进 configuration）=====
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+    map-underscore-to-camel-case: false
+  global-config:
+    db-config:
+      logic-delete-field: isDelete
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+logging:
+  level:
+    com.ruwei: debug
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+  group-configs:
+    - group: 'default'
+      paths-to-match: '/**'
+      packages-to-scan: com.ruwei.isegoriauser.controller
+
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
