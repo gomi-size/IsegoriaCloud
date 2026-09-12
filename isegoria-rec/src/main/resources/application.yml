@@ -1,5 +1,5 @@
 server:
-  port: 8201                # user=8201 post=8202 interaction=8203 social=8204 notify=8205 rec=8206
+  port: 8206                # user=8201 post=8202 interaction=8203 social=8204 notify=8205 rec=8206
   servlet:
     context-path: /api
   error:
@@ -60,12 +60,12 @@ cors:
 dubbo:
   application:
     name: isegoria-rec
+    register-mode: instance   # 应用级注册；Dubbo 只读 dubbo.application.register-mode 这一条路径
   registry:
     address: nacos://127.0.0.1:8848?username=nacos&password=nacos
-    register-mode: instance
   protocol:
     name: tri
-    port: 50051
+    port: 50056
   consumer:
     timeout: 5000
     check: false            # 启动不强制依赖方在线，避免启动顺序耦合
@@ -111,7 +111,7 @@ springdoc:
   group-configs:
     - group: 'default'
       paths-to-match: '/**'
-      packages-to-scan: com.ruwei.isegoriauser.controller
+      packages-to-scan: com.ruwei.rec.controller
 
 knife4j:
   enable: true

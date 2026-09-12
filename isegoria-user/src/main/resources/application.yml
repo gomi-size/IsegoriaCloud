@@ -55,9 +55,9 @@ cors:
 dubbo:
   application:
     name: isegoria-user
+    register-mode: instance   # 应用级注册；Dubbo 只读 dubbo.application.register-mode 这一条路径
   registry:
     address: nacos://127.0.0.1:8848?username=nacos&password=nacos
-    register-mode: instance
   protocol:
     name: tri
     port: 50051
@@ -106,7 +106,7 @@ springdoc:
   group-configs:
     - group: 'default'
       paths-to-match: '/**'
-      packages-to-scan: com.ruwei.isegoriauser.controller
+      packages-to-scan: com.ruwei.user.controller
 
 knife4j:
   enable: true
