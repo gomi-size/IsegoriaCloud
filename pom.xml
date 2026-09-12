@@ -8,19 +8,22 @@
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>isegoria-parent</name>
-    <description>IsegoriaForum 微服务聚合工程（P0：模块化单体）</description>
+    <description>IsegoriaForum 微服务聚合工程</description>
 
 
     <modules>
         <module>isegoria-common</module>
-        <!--<module>isegoria-model</module>-->
-<!--        <module>isegoria-client</module>
+        <module>isegoria-model</module>
+        <module>isegoria-client</module>
+        <!-- 以下为后续阶段的微服务模块，目录尚未创建，落地时逐个解开注释 -->
+        <!--
         <module>isegoria-user</module>
         <module>isegoria-post</module>
         <module>isegoria-interaction</module>
         <module>isegoria-social</module>
         <module>isegoria-notify</module>
-        <module>isegoria-rec</module>-->
+        <module>isegoria-rec</module>
+        -->
     </modules>
 
     <properties>
@@ -53,6 +56,15 @@
                 <groupId>cn.dev33</groupId>
                 <artifactId>sa-token-dependencies</artifactId>
                 <version>${sa-token.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Dubbo BOM：tri 协议 + Nacos 注册中心相关依赖统一版本 -->
+            <dependency>
+                <groupId>org.apache.dubbo</groupId>
+                <artifactId>dubbo-bom</artifactId>
+                <version>${dubbo.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -92,13 +104,6 @@
                 <groupId>com.ruwei</groupId>
                 <artifactId>isegoria-common</artifactId>
                 <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.dubbo</groupId>
-                <artifactId>dubbo-bom</artifactId>
-                <version>${dubbo.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>com.ruwei</groupId>

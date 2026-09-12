@@ -21,9 +21,16 @@
 
         <!-- ================= web：全局异常 / CORS / Jackson(Long→String) / @RateLimit ================= -->
         <!-- GlobalExceptionHandler 捕获 Sa-Token 异常、RateLimitAspect 调 StpUtil 取登录态 -->
+        <!-- Sa-Token（1.41.0，版本由父 POM 的 sa-token BOM 管理）：
+             starter = core + 自动装配 + 拦截器能力；redis-jackson = 会话存 Redis。
+             六服务连同一 Redis 且 sa-token 配置逐字一致 → 登录态跨服务共享，登录代码零改造 -->
         <dependency>
             <groupId>cn.dev33</groupId>
-            <artifactId>sa-token-core</artifactId>
+            <artifactId>sa-token-spring-boot3-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.dev33</groupId>
+            <artifactId>sa-token-redis-jackson</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -42,6 +49,11 @@
         <dependency>
             <groupId>cn.hutool</groupId>
             <artifactId>hutool-all</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.ruwei</groupId>
+            <artifactId>isegoria-model</artifactId>
         </dependency>
 
         <!-- ================= mybatis：分页插件 / CountUtils ================= -->
