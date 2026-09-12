@@ -1,0 +1,5 @@
+# 应用服务 WEB 访问端口（interaction 服务：8203）
+# 完整配置段（MySQL / Redis / RabbitMQ / Dubbo / Sa-Token / MyBatis-Plus / springdoc / cors）
+# 见 docs/phase2-六服务骨架.md §5.4，待本模块 pom 补齐依赖后启用
+server:
+  port: 8203

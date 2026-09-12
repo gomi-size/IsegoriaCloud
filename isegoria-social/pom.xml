@@ -9,16 +9,15 @@
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>isegoria-user</artifactId>
-    <name>isegoria-user</name>
-    <description>用户相关的模块</description>
+    <artifactId>isegoria-social</artifactId>
+    <name>isegoria-social</name>
+    <description>社交关系相关的服务类</description>
 
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
-
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

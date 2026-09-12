@@ -1,0 +1,5 @@
+# 应用服务 WEB 访问端口（rec 服务：8206）
+# 完整配置段（MySQL / Redis / RabbitMQ / Dubbo / Sa-Token / MyBatis-Plus / springdoc / cors
+# + spring.elasticsearch.uris 与 rec.* 精排参数，见 docs/phase2-六服务骨架.md §5.4）
+server:
+  port: 8206
