@@ -46,6 +46,8 @@ spring:
     multipart:
       max-file-size: 5MB
       max-request-size: 5MB
+  profiles:
+    active: local
 
 # ===== 跨域白名单（CorsConfig 读取；严禁 *，allowCredentials=true 下等同任意站点可带 Cookie） =====
 cors:

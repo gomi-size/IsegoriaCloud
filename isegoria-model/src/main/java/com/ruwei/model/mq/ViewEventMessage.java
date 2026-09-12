@@ -26,6 +26,21 @@ public class ViewEventMessage implements Serializable {
     /** 被浏览的帖子内部 id */
     private Long postId;
 
+    /**
+     * 帖子表的标签
+     */
+    private String PostTopic;
+
+    /**
+     * 帖子的类型
+     */
+    private Integer type;
+
+    /**
+     * 板块的id
+     */
+    private Long BoardId;
+
     /** 停留时长（毫秒），旧事件若未采集则为 null */
     private Long dwellMs;
 }

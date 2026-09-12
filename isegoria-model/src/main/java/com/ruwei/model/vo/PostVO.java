@@ -50,6 +50,15 @@ public class PostVO implements Serializable {
     private Long boardId;
 
     /**
+     * 所属板块简要信息（复用 {@link PostBrowseVO.BoardBrief}，同包免 import；
+     * 由 {@code PostServiceImpl#buildPostVO} 在 boardId 非空时单查 board 表填充）。
+     *
+     * <p>前端用 {@code board.name} 渲染 chip、{@code board.slug} 拼 {@code /board/{slug}}
+     * 跳转板块页；无板块帖或板块已逻辑删除时为 null，前端不渲染板块入口。</p>
+     */
+    private PostBrowseVO.BoardBrief board;
+
+    /**
      * 作者昵称（来自 user 表 nickname）
      */
     private String userNickname;

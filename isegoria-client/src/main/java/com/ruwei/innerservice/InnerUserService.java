@@ -35,5 +35,17 @@ public interface InnerUserService {
      * @return
      */
     String getNickname(Long userId);
+
+    /**
+     * 用户计数字段原子增减（审核流中维护作者 postCount，语义对齐 CountUtils.increment）。
+     *
+     * <p>计数留在 user 服务执行（post 表归 post、user 计数归 user，互不直改对方表）；
+     * {@code column} 走服务端白名单语义（当前仅 {@code postCount}），调用方勿拼用户输入。</p>
+     *
+     * @param userId 用户内部 id
+     * @param column 计数列名（当前仅支持 "postCount"）
+     * @param delta  增量（正数加、负数减）
+     */
+    void incrementUserCount(Long userId, String column, int delta);
 }
 
