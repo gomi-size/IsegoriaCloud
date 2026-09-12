@@ -16,14 +16,15 @@
         <module>isegoria-model</module>
         <module>isegoria-client</module>
         <!-- 以下为后续阶段的微服务模块，目录尚未创建，落地时逐个解开注释 -->
-        <!--
+
         <module>isegoria-user</module>
-        <module>isegoria-post</module>
-        <module>isegoria-interaction</module>
-        <module>isegoria-social</module>
-        <module>isegoria-notify</module>
-        <module>isegoria-rec</module>
-        -->
+        <!--
+      <module>isegoria-post</module>
+      <module>isegoria-interaction</module>
+      <module>isegoria-social</module>
+      <module>isegoria-notify</module>
+      <module>isegoria-rec</module>
+      -->
     </modules>
 
     <properties>
