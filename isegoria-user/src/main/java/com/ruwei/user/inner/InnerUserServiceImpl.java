@@ -1,18 +1,16 @@
 package com.ruwei.user.inner;
 
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.List;
-
-import org.apache.dubbo.config.annotation.DubboService;
-
 import com.ruwei.common.mybatis.CountUtils;
 import com.ruwei.innerservice.InnerUserService;
 import com.ruwei.model.entity.User;
 import com.ruwei.model.enums.AdminEnum;
 import com.ruwei.user.service.UserService;
-
 import jakarta.annotation.Resource;
+import org.apache.dubbo.config.annotation.DubboService;
+
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.List;
 
 /**
  * 用户契约的 Dubbo provider（供 post / interaction / social / notify / rec 远程调用）。
@@ -62,5 +60,15 @@ public class InnerUserServiceImpl implements InnerUserService {
             return;
         }
         CountUtils.increment(userService, User::getId, userId, column, delta);
+    }
+
+    @Override
+    public User getByUserId(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        return userService.lambdaQuery()
+                .eq(User::getUserId, userId)
+                .one();
     }
 }

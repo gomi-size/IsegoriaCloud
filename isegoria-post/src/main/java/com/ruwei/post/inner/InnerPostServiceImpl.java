@@ -58,6 +58,8 @@ public class InnerPostServiceImpl implements InnerPostService {
 
     /** 评论计数列白名单 */
     private static final Set<String> COMMENT_COUNT_COLUMNS = Set.of("likeCount");
+    /** 板块计数白名单：列名进 SQL，必须服务端收口 */
+    private static final Set<String> BOARD_COUNT_COLUMNS = Set.of("followCount", "postCount");
 
     /** 列表卡片预览正文最大字符数（超出截断并追加省略号），与 PostServiceImpl 口径一致 */
     private static final int PREVIEW_MAX_LENGTH = 100;
@@ -384,5 +386,35 @@ public class InnerPostServiceImpl implements InnerPostService {
             return StrUtil.sub(plain, 0, PREVIEW_MAX_LENGTH) + "...";
         }
         return plain;
+    }
+    @Override
+    public List<Board> listBoardsByIds(Collection<Long> boardIds) {
+        if (boardIds == null || boardIds.isEmpty()) {
+            return List.of();
+        }
+        // 逻辑删除板块由 Board 上的 @TableLogic 自动排除
+        List<Board> boards = boardService.listByIds(boardIds);
+        return boards == null ? List.of() : boards;
+    }
+
+    @Override
+    public List<Long> listBoardIdsByCreatorId(Long creatorId) {
+        if (creatorId == null) {
+            return List.of();
+        }
+        return boardService.lambdaQuery()
+                .eq(Board::getCreatorId, creatorId)
+                .list().stream()
+                .map(Board::getId)
+                .toList();
+    }
+
+    @Override
+    public boolean incrementBoardCount(Long boardId, String column, int delta) {
+        if (boardId == null || !BOARD_COUNT_COLUMNS.contains(column)) {
+            log.warn("拒绝非法板块计数列名 boardId={} column={}（白名单 {}）", boardId, column, BOARD_COUNT_COLUMNS);
+            return false;
+        }
+        return CountUtils.increment(boardService, Board::getId, boardId, column, delta);
     }
 }

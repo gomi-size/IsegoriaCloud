@@ -123,4 +123,44 @@ public interface InnerPostService {
      * @return 与入参同序的卡片 VO 列表；入参为空或无有效帖子返回空列表（不返回 null）
      */
     List<PostBrowseVO> buildBrowseVOList(Long loginId, List<Long> postIds);
+
+    /**
+     * 批量按 id 查板块（关注板块列表组装用）。
+     *
+     * <p>旧单体 {@code BoardFollowServiceImpl.getFollowBoardList} 直接 {@code boardService.listByIds}；
+     * 拆服务后 board 表归 post，需经本方法。查询自带 {@code @TableLogic} 过滤已逻辑删除板块，
+     * 返回顺序不保证，调用方需按自己的 boardIds 顺序重排。</p>
+     *
+     * @param boardIds 板块内部 id 集合
+     * @return 板块列表；入参为空返回空列表
+     */
+    List<Board> listBoardsByIds(Collection<Long> boardIds);
+
+    /**
+     * 查某人创建的板块 id 列表（「我创建的板块的粉丝」列表用）。
+     *
+     * <p>旧单体 {@code boardService.lambdaQuery().eq(Board::getCreatorId, loginId).list()}
+     * 取 id；逻辑删除板块自动过滤。</p>
+     *
+     * @param creatorId 板块创建者内部 id
+     * @return 板块内部 id 列表；无板块返回空列表
+     */
+    List<Long> listBoardIdsByCreatorId(Long creatorId);
+
+    /**
+     * 板块冗余计数原子增减（{@code followCount} / {@code postCount}）。
+     *
+     * <p><b>为什么必须走本方法</b>：旧单体 {@code BoardFollowServiceImpl.incrementBoardFollowCount}
+     * 直接 {@code UPDATE board SET followCount = followCount ± 1}，跨服务后 board 表归 post，
+     * 必须收口；且必须 DB 层原子自增，不能「查出来 +1 再存回」。</p>
+     *
+     * <p><b>安全约定</b>：{@code column} 会拼进 SQL，provider 侧按白名单收口
+     * （当前支持 {@code followCount} / {@code postCount}），非白名单值返回 {@code false}。</p>
+     *
+     * @param boardId 板块内部 id
+     * @param column  计数列名：仅支持 {@code followCount} / {@code postCount}
+     * @param delta   增量（正数加、负数减）
+     * @return 是否更新成功（影响行数 &gt; 0）
+     */
+    boolean incrementBoardCount(Long boardId, String column, int delta);
 }
