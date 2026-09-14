@@ -295,6 +295,7 @@ public interface PostService extends IService<Post> {
      */
     IPage<PostBrowseVO> listMyCollect(long current, long pageSize);
 
+
     /**
      * 站外分享埋点：shareCount 原子 +1，并写分享流水（channel 渠道，无接收者，不通知）。
      *

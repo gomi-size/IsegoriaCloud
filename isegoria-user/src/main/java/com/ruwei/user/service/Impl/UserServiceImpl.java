@@ -1,4 +1,4 @@
-package com.ruwei.user.service.serviceImpl;
+package com.ruwei.user.service.Impl;
 
 
 import cn.dev33.satoken.secure.BCrypt;
@@ -29,10 +29,8 @@ import com.ruwei.user.service.UserService;
 import jakarta.annotation.Resource;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
-import com.ruwei.common.sensitive.SensitiveWordFilter;
 
 import java.util.List;
 import java.util.Objects;
