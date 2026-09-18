@@ -1,23 +1,3 @@
-# =============================================================
-# isegoria-gateway 网关配置（本地开发）
-#
-# 配套文档：docs/phase13-gateway-scg.md（§4.4 版本 / §6.3 白名单 / §8 限流与 CORS）
-#
-# ★★ 四个最容易翻车的点，改配置前先看：
-#   1) 配置前缀是 spring.cloud.gateway.**server.webflux**.*
-#      —— Spring Cloud 2025.0 起改名；写老的 spring.cloud.gateway.routes **不报错**，
-#         但路由表为空、全站 404。自查：curl 127.0.0.1:8100/actuator/gateway/routes
-#   2) 路由 URI 用 ${app.hosts.*}（文件中部定义，默认 127.0.0.1），
-#      Docker 环境只需覆盖那 6 行，不必复制整张路由表
-#   3) sa-token 段必须与 6 个业务服务**逐字一致**（token-name / timeout / cookie 三项尤其），
-#      否则网关读不到业务服务写的会话 → "登录成功但网关一直 401"
-#   4) 业务服务在 Nacos 里注册的是 **Dubbo 端口**（50051~50056），不是 HTTP 8201~8206，
-#      所以路由**不能**写 lb://isegoria-xxx（见文件中部注释）
-#
-# 运行：
-#   mvn -f isegoria-gateway/pom.xml -DskipTests clean package
-#   java -jar isegoria-gateway/target/isegoria-gateway-1.0.0-SNAPSHOT.jar
-# =============================================================
 
 server:
   port: 8100
@@ -75,7 +55,7 @@ spring:
             # Access-Control-Allow-Origin，双份会让浏览器直接拒绝（multiple values）
             - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin, RETAIN_FIRST
 
-          # ---------------- 路由表（★ 顺序由 order 决定；依据 = 手册 §1.2 实测表） ----------------
+          # ---------------- 路由表 ----------------
           # 三条硬规则：
           #   ① 只写到「第二段」的具体前缀：/api/admin/* 是 user/post/rec 共享的第一段，
           #      绝不给 post 写 /api/admin/** 通配（会抢走 user 管理端与 rec 运维接口）
@@ -88,12 +68,27 @@ spring:
               uri: http://${app.hosts.user}:8201
               predicates:
                 - Path=/api/admin/user/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: 20
+                    redis-rate-limiter.burstCapacity: 40
+                    redis-rate-limiter.requestedTokens: 1
+                    key-resolver: "#{@userKeyResolver}"
             # --- user 前台 ---
             - id: user
               order: 20
               uri: http://${app.hosts.user}:8201
               predicates:
                 - Path=/api/user/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    # 令牌桶：稳态每秒补 N 个，桶容量 M（允许突发）
+                    redis-rate-limiter.replenishRate: 20
+                    redis-rate-limiter.burstCapacity: 40
+                    redis-rate-limiter.requestedTokens: 1
+                    key-resolver: "#{@userKeyResolver}"
             # --- post 前台 ---
             - id: post
               order: 30
@@ -326,5 +321,3 @@ logging:
     root: info
     com.ruwei: info
     org.springframework.cloud.gateway: info
-    # 排查"这条请求命中了哪个 route"时打开
-    # org.springframework.cloud.gateway.handler.RoutePredicateHandlerMapping: debug

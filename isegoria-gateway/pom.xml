@@ -3,31 +3,47 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
+    <!-- =====================================================================
+         isegoria-gateway（业务网关）—— Spring Cloud Gateway (WebFlux)
+         配套文档：docs/phase13-gateway-scg.md
+         =====================================================================
+         ★ 版本策略：**与 6 个业务服务同栈**（手册里的"车道 B"）
+             Boot 3.5.3 + Spring Cloud 2025.0.3 + SCG 4.3.5 + Sa-Token 1.41.0
+
+           为什么选它：网关要反序列化业务服务写进共享 Redis 的 SaSession，Sa-Token 必须**同版本**；
+           而 Sa-Token 的 boot4 starter 起于 1.45.0 —— 若网关用 Boot 4，就得把 6 个业务服务一起升 Sa-Token。
+           反过来"网关与业务服务同栈"可让 **业务服务零改动**（代价：落在 2025.0.x，OSS 支持 2026-06-30 已结束，
+           将来整体升 Boot 4 时按手册 §2.2 路线 A 两端一起升即可）。
+
+         工程结构：列在父聚合 <modules> 里（供 IDE 识别 / 统一构建），parent 指向父聚合，
+                  于是**直接继承同一套 Boot + Sa-Token 版本**——"两边一起升"变成结构性保证，不会漏改一边。
+                  （聚合 ≠ 继承的老顾虑已作废：这里就是要继承，见手册 §4.1）
+
+         构建 / 运行：
+             mvn -f isegoria-gateway/pom.xml -DskipTests clean package
+             java -jar isegoria-gateway/target/isegoria-gateway-1.0.0-SNAPSHOT.jar
+    ===================================================================== -->
     <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.8</version>
-        <relativePath/>
+        <groupId>com.ruwei</groupId>
+        <artifactId>isegoria-cloud</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <groupId>com.ruwei</groupId>
     <artifactId>isegoria-gateway</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
     <name>isegoria-gateway</name>
-    <description>IsegoriaForum 业务网关（Spring Cloud Gateway 5.x / WebFlux）</description>
+    <description>IsegoriaForum 业务网关（Spring Cloud Gateway / WebFlux）</description>
 
     <properties>
-        <java.version>17</java.version>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <spring-cloud.version>2025.1.3</spring-cloud.version>
-        <spring-cloud-alibaba.version>2025.1.0.0</spring-cloud-alibaba.version>
-        <sa-token.version>1.46.0</sa-token.version>
-        <nacos-client.version>2.4.2</nacos-client.version>
+        <!-- ★ 与业务服务同一代：2025.0.x（配套 Boot 3.5.x）。
+             2025.0.3 是该 release train 最后一个 OSS 版本（OSS 支持 2026-06-30 结束）。 -->
+        <spring-cloud.version>2025.0.3</spring-cloud.version>
+        <!-- SCA 2025.0.0.0 适配 SC 2025.0.x / Boot 3.5.x（传递 nacos-client 3.0.3，见下面的 exclude） -->
+        <spring-cloud-alibaba.version>2025.0.0.0</spring-cloud-alibaba.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
-            <!-- Spring Cloud 2025.1（Oakwood，基于 Boot 4.0.8，OSS 支持到 2027-07-31） -->
             <dependency>
                 <groupId>org.springframework.cloud</groupId>
                 <artifactId>spring-cloud-dependencies</artifactId>
@@ -35,7 +51,6 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- Spring Cloud Alibaba 2025.1.0.0（适配 SC 2025.1.x / Boot 4.0.x） -->
             <dependency>
                 <groupId>com.alibaba.cloud</groupId>
                 <artifactId>spring-cloud-alibaba-dependencies</artifactId>
@@ -43,19 +58,18 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- Sa-Token BOM：统一 sa-token-core / starter / redis 插件的版本 -->
-            <dependency>
-                <groupId>cn.dev33</groupId>
-                <artifactId>sa-token-dependencies</artifactId>
-                <version>${sa-token.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
+            <!-- 其余（spring-boot-dependencies 3.5.3 / sa-token-dependencies 1.41.0 /
+                 nacos-client 2.4.2 / hutool / knife4j …）全部继承自父 POM。 -->
         </dependencies>
     </dependencyManagement>
 
     <dependencies>
         <!-- ==================== 网关本体 ==================== -->
+        <!-- Spring Cloud 2025.0 起 gateway 的坐标与配置前缀都换了新的：
+               旧 spring-cloud-starter-gateway  → 新 spring-cloud-starter-gateway-server-webflux
+               旧 spring.cloud.gateway.routes   → 新 spring.cloud.gateway.server.webflux.routes
+             （旧前缀**不报错但不绑定** → 路由为空 + 全站 404，手册 §2.1）
+             已实测 4.3.5 的 jar：配置元数据里只有新前缀组；新坐标 starter → marker 包 → spring-cloud-gateway-server 实现 ✓ -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-gateway-server-webflux</artifactId>
@@ -71,7 +85,8 @@
             <groupId>com.alibaba.cloud</groupId>
             <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
             <exclusions>
-                <!-- 排除传递进来的 nacos-client 3.1.1，改为与业务服务一致的 2.4.2 -->
+                <!-- 排除传递进来的 nacos-client 3.0.3，改用父 POM 统一管理的 2.4.2
+                     （本项目 Nacos 服务端 2.3.2，官方兼容表只覆盖 2.x 客户端；手册 §2.3） -->
                 <exclusion>
                     <groupId>com.alibaba.nacos</groupId>
                     <artifactId>nacos-client</artifactId>
@@ -81,21 +96,22 @@
         <dependency>
             <groupId>com.alibaba.nacos</groupId>
             <artifactId>nacos-client</artifactId>
-            <version>${nacos-client.version}</version>
+            <!-- 版本由父 POM 的 dependencyManagement 管（2.4.2），此处不写 -->
         </dependency>
 
         <!-- ==================== Sa-Token（网关统一鉴权） ==================== -->
-        <!-- Reactor（WebFlux）版；业务服务用的是 servlet 版 sa-token-spring-boot3-starter -->
+        <!-- ★ 与业务服务**同版本**（父 POM 的 sa-token-dependencies BOM = 1.41.0）：
+             网关要反序列化业务服务写进 Redis 的 SaSession，版本错配的症状是"登录成功但网关一直 401"。
+             业务服务用 servlet 版 sa-token-spring-boot3-starter，网关用 reactor（WebFlux）版。 -->
         <dependency>
             <groupId>cn.dev33</groupId>
-            <artifactId>sa-token-reactor-spring-boot4-starter</artifactId>
+            <artifactId>sa-token-reactor-spring-boot3-starter</artifactId>
         </dependency>
         <!-- 与业务服务同款：会话存 Redis + Jackson 序列化（格式必须一致，否则读不到登录态） -->
         <dependency>
             <groupId>cn.dev33</groupId>
             <artifactId>sa-token-redis-jackson</artifactId>
         </dependency>
-        <!-- Lettuce 连接池（Sa-Token 官方建议） -->
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-pool2</artifactId>
@@ -131,6 +147,8 @@
 
     <build>
         <plugins>
+            <!-- 产出可执行 fat jar：isegoria-gateway-1.0.0-SNAPSHOT.jar
+                 （deploy/Dockerfile 的 COPY 规则与 deploy/scripts/start-all.sh 的 jar 命名都能对上） -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

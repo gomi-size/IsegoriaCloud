@@ -59,6 +59,16 @@ public class RateLimitAspect {
     @Resource
     private HttpServletRequest request;
 
+    /**
+     * 切点：六服务的控制器在 {@code com.ruwei.<svc>.controller} 包下
+     * （如 {@code com.ruwei.post.controller}、{@code com.ruwei.user.controller}），
+     * **全仓不存在** {@code com.ruwei.controller} 这个包。
+     *
+     * <p>⚠️ 这里别再改回 {@code execution(* com.ruwei.controller..*(..))}：
+     * 那样写是**零匹配** —— 切面注册了但一条通知都织不进去，
+     * {@code @RateLimit} 变成纯装饰且没有任何告警（历史踩过）。
+     * 必须用 {@code com.ruwei..controller..}（中间层任意匹配）。</p>
+     */
     @Around("execution(* com.ruwei..controller..*(..))")
     public Object around(ProceedingJoinPoint pjp) throws Throwable {
         Method method = ((MethodSignature) pjp.getSignature()).getMethod();

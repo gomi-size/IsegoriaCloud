@@ -51,6 +51,14 @@ cors:
     - http://localhost:5174
     - http://127.0.0.1:3000
 
+# ===== 内网边界（P3）：只接受经过网关的请求（网关注入 SA-SAME-TOKEN 头）=====
+# 默认关闭：本机 IDE 直连 8205 调试不受影响。
+# 打开时机：Nginx 已把 /api/ 切到网关、且回归跑通之后（Docker 里用 GATEWAY_SAME_TOKEN_ENABLED=true 统一覆盖）。
+# 若在本机直连调试又要打开它：同时加 allow-localhost: true（放行回环地址）。
+gateway:
+  same-token:
+    enabled: false
+
 # ===== Dubbo（六服务差异仅 protocol.port：50051~50056）=====
 dubbo:
   application:
