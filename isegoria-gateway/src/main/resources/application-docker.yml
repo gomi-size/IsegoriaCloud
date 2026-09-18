@@ -66,7 +66,10 @@ app:
 # ---------------- Sa-Token：线上 HTTPS 必须 secure=true，否则浏览器不发送 Cookie ----------------
 sa-token:
   cookie:
-    secure: true
+    # ★ 初期用「服务器 IP + HTTP」直连时必须为 false（secure Cookie 只在 HTTPS 下会被浏览器回传，
+    #   HTTP 下设 true 的症状：登录接口成功但下一次请求就 40100）。
+    #   挂上域名 + 证书后，在 .env 里设 COOKIE_SECURE=true 并重启网关。
+    secure: ${COOKIE_SECURE:false}
     http-only: true
     path: /
     # domain: .example.com       # 前后端跨子域时才需要（如 www.x.com 调 api.x.com），同域留空

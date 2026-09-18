@@ -137,8 +137,6 @@
                         <source>17</source>
                         <target>17</target>
                         <encoding>UTF-8</encoding>
-                        <!-- Spring Framework 6.1+ 不再回退读字节码调试信息取参数名，
-                             必须显式保留（spring-boot-starter-parent 默认带，本项目没继承它） -->
                         <parameters>true</parameters>
                     </configuration>
                 </plugin>

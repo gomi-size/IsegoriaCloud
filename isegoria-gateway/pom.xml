@@ -152,6 +152,18 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>com.ruwei.gateway.IsegoriaGatewayApplication</mainClass>
+                </configuration>
+                <executions>
+                    <!-- ★ 必须显式绑定 repackage：父 POM 不是 spring-boot-starter-parent（聚合 ≠ 继承），
+                         不写 executions 只会打出普通 jar（无 Main-Class manifest），java -jar 直接报
+                         "no main manifest attribute"。6 个业务服务的 pom 都是这么写的，网关对齐。 -->
+                    <execution>
+                        <id>repackage</id>
+                        <goals><goal>repackage</goal></goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
