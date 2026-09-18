@@ -13,7 +13,7 @@ import com.ruwei.model.enums.PostAuditStatusEnum;
 import com.ruwei.model.enums.PostStatusEnum;
 import com.ruwei.model.enums.PostVisibilityEnum;
 import com.ruwei.rec.empty.PostDoc;
-import com.ruwei.rec.mapper.PostEsMapper;
+import com.ruwei.rec.repository.PostEsRepository;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.dubbo.config.annotation.DubboReference;
@@ -60,7 +60,7 @@ public class EsPostSyncService {
     private static final int BATCH_SIZE = 500;
 
     @Resource
-    private PostEsMapper postEsMapper;
+    private PostEsRepository postEsRepository;
 
     /** user 服务：{@code PostDoc} 冗余的作者昵称/头像取数 */
     @DubboReference
@@ -90,15 +90,15 @@ public class EsPostSyncService {
         }
         if (!shouldIndex(post)) {
             // 不满足索引条件就确保索引里没有它（防止脏数据）
-            postEsMapper.deleteById(postId);
+            postEsRepository.deleteById(postId);
             return;
         }
-        postEsMapper.save(toDoc(post));
+        postEsRepository.save(toDoc(post));
     }
 
     /** 按 id 删除索引 */
     public void deleteByPostId(Long postId) {
-        postEsMapper.deleteById(postId);
+        postEsRepository.deleteById(postId);
     }
 
     /**
@@ -128,7 +128,7 @@ public class EsPostSyncService {
                     .map(this::toDoc)
                     .collect(Collectors.toList());
             if (!docs.isEmpty()) {
-                postEsMapper.saveAll(docs);
+                postEsRepository.saveAll(docs);
                 total += docs.size();
             }
             // ③ 游标推进到本批最后一条（ids 升序，末位即最大 id）
@@ -180,13 +180,13 @@ public class EsPostSyncService {
         for (Post post : posts) {
             if (!shouldIndex(post)) {
                 // 不满足索引条件就确保索引里没有它（防止脏数据）
-                postEsMapper.deleteById(post.getId());
+                postEsRepository.deleteById(post.getId());
                 continue;
             }
             docs.add(toDoc(post, author, tagMap));
         }
         if (!docs.isEmpty()) {
-            postEsMapper.saveAll(docs);
+            postEsRepository.saveAll(docs);
         }
         log.info("用户资料变更触发 ES 重建完成 authorId={} 重建 {} 条", userId, docs.size());
     }

@@ -62,6 +62,8 @@ gateway:
 # ===== Dubbo（六服务差异仅 protocol.port：50051~50056）=====
 dubbo:
   application:
+    # QoS 运维端口：六服务同机部署必须互不相同（默认都是 22222，第二个启动的服务会 BindException）
+    qos-port: 33334
     name: isegoria-social
     register-mode: instance   # 应用级注册；Dubbo 只读 dubbo.application.register-mode 这一条路径
   registry:

@@ -21,13 +21,6 @@
         <module>isegoria-social</module>
         <module>isegoria-notify</module>
         <module>isegoria-rec</module>
-        <!-- ================================================================
-             网关：写进 <modules> 只是为了「聚合」——让 IDEA 能识别、让 root mvn 能一起构建。
-             ★ 聚合 ≠ 继承：它的 <parent> 是 org.springframework.boot:spring-boot-starter-parent:4.0.8
-               （见 isegoria-gateway/pom.xml，且显式 <relativePath/>），所以本 POM 里的
-               dependencyManagement（Boot 3.5.3 + Dubbo BOM）**不会**渗进网关，
-               两套 Boot 版本的隔离依然成立。
-             ================================================================ -->
         <module>isegoria-gateway</module>
     </modules>
 
@@ -144,6 +137,9 @@
                         <source>17</source>
                         <target>17</target>
                         <encoding>UTF-8</encoding>
+                        <!-- Spring Framework 6.1+ 不再回退读字节码调试信息取参数名，
+                             必须显式保留（spring-boot-starter-parent 默认带，本项目没继承它） -->
+                        <parameters>true</parameters>
                     </configuration>
                 </plugin>
                 <plugin>

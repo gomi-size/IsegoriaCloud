@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.ratelimit.KeyResolver;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpCookie;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Mono;
@@ -31,8 +32,14 @@ public class RateLimitConfig {
      *
      * <p>⚠️ 前提是网关的 {@code spring.cloud.gateway.server.webflux.trusted-proxies} 配了 Nginx 的 IP，
      * 否则拿到的 remoteAddress 是网关自己。</p>
+     *
+     * <p>★ @Primary：容器里有两个 KeyResolver 时，SCG 的
+     * {@code requestRateLimiterGatewayFilterFactory} 自动配置要求注入一个"默认"解析器，
+     * 不标 @Primary 会直接启动失败（NoUniqueBeanDefinitionException）。
+     * 路由里用 {@code key-resolver: "#{@userKeyResolver}"} 显式指定的不受此影响。</p>
      */
     @Bean
+    @Primary
     public KeyResolver ipKeyResolver() {
         return exchange -> {
             String xff = exchange.getRequest().getHeaders().getFirst("X-Forwarded-For");

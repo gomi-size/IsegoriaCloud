@@ -68,6 +68,7 @@ gateway:
 # ===== Dubbo（六服务差异仅 protocol.port：50051~50056）=====
 dubbo:
   application:
+    qos-port: 33333
     name: isegoria-post
     register-mode: instance   # 应用级注册；Dubbo 只读 dubbo.application.register-mode 这一条路径
   registry:
@@ -75,6 +76,7 @@ dubbo:
   protocol:
     name: tri
     port: 50052
+
   consumer:
     timeout: 5000
     check: false            # 启动不强制依赖方在线，避免启动顺序耦合

@@ -11,8 +11,9 @@ spring:
     web-application-type: reactive
   # 请求体缓冲上限：纯透传不缓冲，只有 ModifyRequestBody/CacheRequestBody 这类过滤器才用到；
   # 与 Nginx client_max_body_size 12m 对齐（post 上传上限 5MB，留一倍余量）
-  codec:
-    max-in-memory-size: 12MB
+  http:
+    codecs:
+      max-in-memory-size: 10MB
 
   # ---------------- Redis：★★ 必须与业务服务同一个实例、同一个 database ----------------
   # Sa-Token 会话就在这里（业务服务写、网关读）；换库/换实例 = 全员掉登录
