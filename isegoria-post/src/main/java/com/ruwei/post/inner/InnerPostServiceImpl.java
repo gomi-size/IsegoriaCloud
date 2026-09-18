@@ -1,6 +1,7 @@
 package com.ruwei.post.inner;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.ruwei.common.mybatis.CountUtils;
@@ -9,7 +10,9 @@ import com.ruwei.innerservice.InnerPostService;
 import com.ruwei.innerservice.InnerUserService;
 import com.ruwei.model.dto.ContentBlock;
 import com.ruwei.model.entity.*;
+import com.ruwei.model.enums.PostAuditStatusEnum;
 import com.ruwei.model.enums.PostStatusEnum;
+import com.ruwei.model.enums.PostVisibilityEnum;
 import com.ruwei.model.vo.PostBrowseVO;
 import com.ruwei.post.assembler.BoardBriefFiller;
 import com.ruwei.post.assembler.TagBriefFiller;
@@ -17,6 +20,7 @@ import com.ruwei.post.service.BoardService;
 import com.ruwei.post.service.CommentService;
 import com.ruwei.post.service.PostService;
 import com.ruwei.post.service.PostTagService;
+import com.ruwei.post.service.TagService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.dubbo.config.annotation.DubboReference;
@@ -76,6 +80,10 @@ public class InnerPostServiceImpl implements InnerPostService {
     @Resource
     private PostTagService postTagService;
 
+    /** tag 表 Service（{@link #listTagsByIds} 装配 ES 文档标签名用） */
+    @Resource
+    private TagService tagService;
+
     /** 板块信息批量装配（PostBrowseVO 的 board 对象 + 兼容字段 boardName/boardSlug，防 N+1） */
     @Resource
     private BoardBriefFiller boardBriefFiller;
@@ -129,19 +137,6 @@ public class InnerPostServiceImpl implements InnerPostService {
                 .eq(PostTag::getStatus, PostStatusEnum.PUBLISHED.getCode())
                 .list().stream().map(PostTag::getPostId).distinct().toList();
     }
-
-    @Override
-    public List<Long> listPostIdsByBoardIds(List<Long> boardIds) {
-        // 空集合短路：同上
-        if (boardIds == null || boardIds.isEmpty()) {
-            return List.of();
-        }
-        return postService.lambdaQuery()
-                .in(Post::getBoardId, boardIds)
-                .eq(Post::getStatus, PostStatusEnum.PUBLISHED.getCode())
-                .list().stream().map(Post::getId).distinct().toList();
-    }
-
 
     /**
      * 按对外编码查询帖子（postCode → 内部 id 解析）。
@@ -416,5 +411,164 @@ public class InnerPostServiceImpl implements InnerPostService {
             return false;
         }
         return CountUtils.increment(boardService, Board::getId, boardId, column, delta);
+    }
+
+    // ==================== Phase 8：推荐召回 + ES 同步 ====================
+
+    /** 单个查询的兜底上限，防调用方传 0 或负数把整库捞出来 */
+    private static final int MAX_RECALL_LIMIT = 500;
+
+    /** 标题/正文等组装成卡片时用不到，这里只取 id */
+    private List<Long> toIdList(List<Post> posts) {
+        return posts.stream().map(Post::getId).filter(Objects::nonNull).toList();
+    }
+
+    /** 归一化 limit：<=0 视为不限制（给个兜底上限），防止误传把库捞空 */
+    private int safeLimit(int limit) {
+        return limit <= 0 ? MAX_RECALL_LIMIT : Math.min(limit, MAX_RECALL_LIMIT);
+    }
+
+    @Override
+    public List<Long> listVisiblePostIdsByAuthorIds(Collection<Long> authorIds,
+                                                    boolean includeFansOnly, int limit) {
+        if (authorIds == null || authorIds.isEmpty()) {
+            return List.of();
+        }
+        // 路①：关注关系背书 → 允许"仅粉丝可见"；其余路一律只放行公开
+        List<Integer> visibilities = includeFansOnly
+                ? List.of(PostVisibilityEnum.PUBLIC.getCode(), PostVisibilityEnum.FANS_ONLY.getCode())
+                : List.of(PostVisibilityEnum.PUBLIC.getCode());
+        return toIdList(postService.lambdaQuery()
+                .in(Post::getUserId, authorIds)
+                .eq(Post::getStatus, PostStatusEnum.PUBLISHED.getCode())
+                .eq(Post::getAuditStatus, PostAuditStatusEnum.APPROVED.getCode())
+                .in(Post::getVisibility, visibilities)
+                .orderByDesc(Post::getCreatedAt)
+                .last("limit " + safeLimit(limit))
+                .list());
+    }
+
+    @Override
+    public List<Long> listVisiblePostIdsByBoardIds(Collection<Long> boardIds, int limit) {
+        if (boardIds == null || boardIds.isEmpty()) {
+            return List.of();
+        }
+        return toIdList(postService.lambdaQuery()
+                .in(Post::getBoardId, boardIds)
+                .eq(Post::getStatus, PostStatusEnum.PUBLISHED.getCode())
+                .eq(Post::getAuditStatus, PostAuditStatusEnum.APPROVED.getCode())
+                .eq(Post::getVisibility, PostVisibilityEnum.PUBLIC.getCode())
+                .orderByDesc(Post::getCreatedAt)
+                .last("limit " + safeLimit(limit))
+                .list());
+    }
+
+    @Override
+    public List<Long> listHotVisiblePostIds(int limit) {
+        return toIdList(postService.lambdaQuery()
+                .eq(Post::getStatus, PostStatusEnum.PUBLISHED.getCode())
+                .eq(Post::getAuditStatus, PostAuditStatusEnum.APPROVED.getCode())
+                .eq(Post::getVisibility, PostVisibilityEnum.PUBLIC.getCode())
+                .orderByDesc(Post::getScore)          // 热点路按热度分，不是时间
+                .last("limit " + safeLimit(limit))
+                .list());
+    }
+
+    @Override
+    public List<Long> listVisiblePostIdsByIds(Collection<Long> postIds, int limit) {
+        if (postIds == null || postIds.isEmpty()) {
+            return List.of();
+        }
+        return toIdList(postService.lambdaQuery()
+                .in(Post::getId, postIds)
+                .eq(Post::getStatus, PostStatusEnum.PUBLISHED.getCode())
+                .eq(Post::getAuditStatus, PostAuditStatusEnum.APPROVED.getCode())
+                .eq(Post::getVisibility, PostVisibilityEnum.PUBLIC.getCode())
+                .orderByDesc(Post::getCreatedAt)
+                .last("limit " + safeLimit(limit))
+                .list());
+    }
+
+    @Override
+    public List<Long> listColdStartPostIds(int hours, int maxViewCount, int limit) {
+        // hours <= 0 时给个默认 72h（旧实现的历史默认值，见 RecServiceImpl 注释）
+        int windowHours = hours <= 0 ? 72 : hours;
+        Date after = DateUtil.offsetHour(new Date(), -windowHours);
+        return toIdList(postService.lambdaQuery()
+                .eq(Post::getStatus, PostStatusEnum.PUBLISHED.getCode())
+                .eq(Post::getAuditStatus, PostAuditStatusEnum.APPROVED.getCode())
+                .eq(Post::getVisibility, PostVisibilityEnum.PUBLIC.getCode())
+                .gt(Post::getCreatedAt, after)
+                .lt(Post::getViewCount, maxViewCount)
+                .orderByDesc(Post::getCreatedAt)
+                .last("limit " + safeLimit(limit))
+                .list());
+    }
+
+    @Override
+    public List<Long> listPostIdsAfterId(Long lastId, int limit) {
+        int size = safeLimit(limit);
+        return postService.lambdaQuery()
+                .gt(lastId != null && lastId > 0, Post::getId, lastId)   // 首批（null/0）不带条件
+                .orderByAsc(Post::getId)
+                .last("limit " + size)
+                .list().stream()
+                .map(Post::getId)
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    @Override
+    public List<Post> listPostsByAuthorId(Long authorId) {
+        if (authorId == null) {
+            return List.of();
+        }
+        // 不带 status/visibility 过滤：调用方（ES 重建）要自己判断"该索引还是该删"
+        return postService.lambdaQuery()
+                .eq(Post::getUserId, authorId)
+                .list();
+    }
+
+    @Override
+    public List<Long> listPostIdsByAuthorId(Long authorId) {
+        if (authorId == null) {
+            return List.of();
+        }
+        return postService.lambdaQuery()
+                .eq(Post::getUserId, authorId)
+                .list().stream()
+                .map(Post::getId)
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    @Override
+    public List<PostBrowseVO> fillBoardAndTags(List<PostBrowseVO> voList) {
+        if (voList == null || voList.isEmpty()) {
+            return voList;
+        }
+        // 复用本服务既有的两个装配组件（它们依赖 BoardService / PostTagService / TagService，都在 post 域）
+        boardBriefFiller.fillBoardBrief(voList);
+        tagBriefFiller.fillTags(voList);
+        return voList;
+    }
+
+    /**
+     * 批量按 id 查标签实体（rec 侧重建 ES 文档、把 {@code post.topic} 的 tag id 串翻译成标签名用）。
+     *
+     * <p><b>刻意不过滤 {@code tag.status}</b>：ES 索引是帖子内容的历史快照，标签被运营禁用后
+     * 不应让既有索引里的标签名凭空消失（对外展示口径的 status 过滤在
+     * {@code TagBriefFiller} 里，两者用途不同）。逻辑删除的标签由 {@code @TableLogic} 自动排除。</p>
+     *
+     * @param tagIds 标签内部 id 集合
+     * @return 标签实体列表；入参为空或无命中返回空列表（不返回 null，便于调用方直接 stream）
+     */
+    @Override
+    public List<Tag> listTagsByIds(Collection<Long> tagIds) {
+        if (tagIds == null || tagIds.isEmpty()) {
+            return List.of();
+        }
+        List<Tag> tags = tagService.listByIds(tagIds);
+        return tags == null ? List.of() : tags;
     }
 }

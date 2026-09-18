@@ -35,4 +35,5 @@ public final class ForumMqConstants {
     public static final String Q_REC_INTEREST = "forum.rec.interest.queue";
     public static final String Q_ES_INDEX = "forum.es.index.queue";
     public static final String Q_ES_PROFILE = "forum.es.profile.queue";
+
 }
