@@ -1,0 +1,79 @@
+# =============================================================
+# isegoria-gateway Docker 环境配置（Profile: docker）
+#
+# 激活方式：docker-compose.yml 里 SPRING_PROFILES_ACTIVE=docker
+# 机制：Spring Boot 把它**叠加在 application.yml 之上**，只覆盖这里写到的键；
+#      路由表 / sa-token 基础配置 / management / globalcors 的其余部分全部沿用 application.yml。
+#
+# ★ 主机名一律用 compose 服务名（redis / nacos / app-user …），
+#   容器里的 127.0.0.1 指的是容器自己，不是宿主机、也不是别的容器。
+# ★ 密码一律从环境变量注入（.env → docker-compose.yml 的 environment → 这里），
+#   所以本文件可以安全提交到 Git。
+# =============================================================
+
+spring:
+  # ---------------- Redis（compose 服务名 redis；★★ 必须与 6 个业务服务同一个实例/同一个库） ----------------
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: 6379
+      password: ${REDIS_PASSWORD}
+      database: 0
+      timeout: 3000ms
+
+  cloud:
+    # ---------------- Nacos（compose 服务名 nacos） ----------------
+    nacos:
+      discovery:
+        server-addr: ${NACOS_HOST:nacos}:8848
+        username: ${NACOS_USER:nacos}
+        password: ${NACOS_PASSWORD}
+
+    gateway:
+      server:
+        webflux:
+          # ★ 容器化后 Nginx 也在 compose 网络里，trusted-proxies 要信任整个容器网段；
+          #   否则 X-Forwarded-For 不被信任，业务服务看到的客户端 IP 全是网关容器 IP
+          trusted-proxies: "172\\.\\d+\\.\\d+\\.\\d+|10\\.\\d+\\.\\d+\\.\\d+|192\\.168\\.\\d+\\.\\d+|127\\.0\\.0\\.1"
+
+          # 跨域白名单换成真实前端域名（列表是**整体覆盖**，不是追加）
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowedOriginPatterns:
+                  - ${SITE_URL:https://www.example.com}
+                  - ${ADMIN_URL:https://admin.example.com}
+                allowCredentials: true
+                allowedMethods: "*"
+                allowedHeaders: "*"
+                exposedHeaders: "*"
+                maxAge: 3600
+
+# =============================================================
+# ★ 只覆盖这一块即可：application.yml 的路由 URI 引用的是 ${app.hosts.*}，
+#   这里换成 compose 服务名后，整张路由表自动指向容器（不用复制 10 条路由）
+#   · 也可用环境变量覆盖：APP_HOSTS_USER / APP_HOSTS_POST / …
+# =============================================================
+app:
+  hosts:
+    user: ${APP_HOSTS_USER:app-user}
+    post: ${APP_HOSTS_POST:app-post}
+    interaction: ${APP_HOSTS_INTERACTION:app-interaction}
+    social: ${APP_HOSTS_SOCIAL:app-social}
+    notify: ${APP_HOSTS_NOTIFY:app-notify}
+    rec: ${APP_HOSTS_REC:app-rec}
+
+# ---------------- Sa-Token：线上 HTTPS 必须 secure=true，否则浏览器不发送 Cookie ----------------
+sa-token:
+  cookie:
+    secure: true
+    http-only: true
+    path: /
+    # domain: .example.com       # 前后端跨子域时才需要（如 www.x.com 调 api.x.com），同域留空
+
+# ---------------- 日志：生产收敛 ----------------
+logging:
+  level:
+    root: info
+    com.ruwei: info
+    org.springframework.cloud.gateway: info

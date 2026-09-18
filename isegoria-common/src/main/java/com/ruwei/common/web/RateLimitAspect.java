@@ -2,11 +2,9 @@ package com.ruwei.common.web;
 
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.util.StrUtil;
-import com.ruwei.common.web.RateLimit;
-import com.ruwei.common.web.RateLimitDimension;
+import com.ruwei.common.core.BusinessException;
 import com.ruwei.common.core.ErrorCode;
 import com.ruwei.common.core.ThrowUtils;
-import com.ruwei.common.core.BusinessException;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -61,13 +59,10 @@ public class RateLimitAspect {
     @Resource
     private HttpServletRequest request;
 
-    @Around("execution(* com.ruwei.controller..*(..))")
+    @Around("execution(* com.ruwei..controller..*(..))")
     public Object around(ProceedingJoinPoint pjp) throws Throwable {
         Method method = ((MethodSignature) pjp.getSignature()).getMethod();
         RateLimit[] rateLimits = method.getAnnotationsByType(RateLimit.class);
-        if (rateLimits.length == 0) {
-            return pjp.proceed();
-        }
         // 多档限流逐个判定，任一超限即拒绝
         for (RateLimit rateLimit : rateLimits) {
             checkRate(rateLimit);

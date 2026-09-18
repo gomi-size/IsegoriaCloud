@@ -1,0 +1,330 @@
+# =============================================================
+# isegoria-gateway 网关配置（本地开发）
+#
+# 配套文档：docs/phase13-gateway-scg.md（§4.4 版本 / §6.3 白名单 / §8 限流与 CORS）
+#
+# ★★ 四个最容易翻车的点，改配置前先看：
+#   1) 配置前缀是 spring.cloud.gateway.**server.webflux**.*
+#      —— Spring Cloud 2025.0 起改名；写老的 spring.cloud.gateway.routes **不报错**，
+#         但路由表为空、全站 404。自查：curl 127.0.0.1:8100/actuator/gateway/routes
+#   2) 路由 URI 用 ${app.hosts.*}（文件中部定义，默认 127.0.0.1），
+#      Docker 环境只需覆盖那 6 行，不必复制整张路由表
+#   3) sa-token 段必须与 6 个业务服务**逐字一致**（token-name / timeout / cookie 三项尤其），
+#      否则网关读不到业务服务写的会话 → "登录成功但网关一直 401"
+#   4) 业务服务在 Nacos 里注册的是 **Dubbo 端口**（50051~50056），不是 HTTP 8201~8206，
+#      所以路由**不能**写 lb://isegoria-xxx（见文件中部注释）
+#
+# 运行：
+#   mvn -f isegoria-gateway/pom.xml -DskipTests clean package
+#   java -jar isegoria-gateway/target/isegoria-gateway-1.0.0-SNAPSHOT.jar
+# =============================================================
+
+server:
+  port: 8100
+  shutdown: graceful              # 优雅停机：先摘流量再退出
+
+spring:
+  application:
+    name: isegoria-gateway
+  # ★ 显式声明 reactive：防止将来误引 servlet 依赖后 SCG 自动配置不注册路由基础设施（同样表现为路由为空）
+  main:
+    web-application-type: reactive
+  # 请求体缓冲上限：纯透传不缓冲，只有 ModifyRequestBody/CacheRequestBody 这类过滤器才用到；
+  # 与 Nginx client_max_body_size 12m 对齐（post 上传上限 5MB，留一倍余量）
+  codec:
+    max-in-memory-size: 12MB
+
+  # ---------------- Redis：★★ 必须与业务服务同一个实例、同一个 database ----------------
+  # Sa-Token 会话就在这里（业务服务写、网关读）；换库/换实例 = 全员掉登录
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      database: 0
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+
+  cloud:
+    # ---------------- Nacos（服务发现；当前路由用静态 URI，注册仅用于运维可见性） ----------------
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+        username: nacos
+        password: nacos
+        register-enabled: true
+
+    gateway:
+      server:
+        webflux:
+          discovery:
+            locator:
+              # ★ 必须保持 false：开它会按服务名自动生成路由（/ISEGORIA-USER/**），
+              #   等于把内部端点全部暴露到公网，是常见的安全事故来源
+              enabled: false
+              lower-case-service-id: true
+
+          # ---------------- 默认过滤器 ----------------
+          default-filters:
+            # 响应头去重：网关的 globalcors 与业务服务的 CorsConfig 都会写
+            # Access-Control-Allow-Origin，双份会让浏览器直接拒绝（multiple values）
+            - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin, RETAIN_FIRST
+
+          # ---------------- 路由表（★ 顺序由 order 决定；依据 = 手册 §1.2 实测表） ----------------
+          # 三条硬规则：
+          #   ① 只写到「第二段」的具体前缀：/api/admin/* 是 user/post/rec 共享的第一段，
+          #      绝不给 post 写 /api/admin/** 通配（会抢走 user 管理端与 rec 运维接口）
+          #   ② 显式写 order，避免将来插入路由时"偶发串服务"
+          #   ③ WebSocket 单独一条 + response-timeout: -1（全局响应超时会掐断长连接）
+          routes:
+            # --- user 管理端（必须在任何 /api/admin/** 通配之前）---
+            - id: user-admin
+              order: 10
+              uri: http://${app.hosts.user}:8201
+              predicates:
+                - Path=/api/admin/user/**
+            # --- user 前台 ---
+            - id: user
+              order: 20
+              uri: http://${app.hosts.user}:8201
+              predicates:
+                - Path=/api/user/**
+            # --- post 前台 ---
+            - id: post
+              order: 30
+              uri: http://${app.hosts.post}:8202
+              predicates:
+                - Path=/api/post/**,/api/boards/**,/api/tag/**,/api/comment/**,/api/postImage/**
+            # --- post 管理端（逐个列具体前缀，不用通配）---
+            - id: post-admin
+              order: 40
+              uri: http://${app.hosts.post}:8202
+              predicates:
+                - Path=/api/adminPost/**,/api/admin/audilog/**,/api/admin/boards/**,/api/admin/score-config/**,/api/admin/sensitive-words/**,/api/admin/tag/**
+            # --- rec 管理端（ES 全量重建等运维接口）---
+            - id: rec-admin
+              order: 50
+              uri: http://${app.hosts.rec}:8206
+              predicates:
+                - Path=/api/admin/search/**
+            # --- interaction ---
+            - id: interaction
+              order: 60
+              uri: http://${app.hosts.interaction}:8203
+              predicates:
+                - Path=/api/postLike/**,/api/collect/**
+            # --- social ---
+            - id: social
+              order: 70
+              uri: http://${app.hosts.social}:8204
+              predicates:
+                - Path=/api/userFollow/**,/api/boardFollow/**
+            # --- notify：普通接口 ---
+            - id: notify
+              order: 80
+              uri: http://${app.hosts.notify}:8205
+              predicates:
+                - Path=/api/notifications/**
+            # --- notify：WebSocket（SockJS + STOMP）---
+            - id: notify-ws
+              order: 90
+              uri: http://${app.hosts.notify}:8205
+              predicates:
+                # 精确 /api/ws 与 /api/ws/** 都要：SockJS 会请求 /api/ws/info、/api/ws/{server}/{session}/websocket
+                - Path=/api/ws,/api/ws/**
+              metadata:
+                response-timeout: -1        # ★ 负值 = 禁用全局 response-timeout，否则 WS 会被掐断重连
+                connect-timeout: 5000
+            # --- rec：搜索 + 推荐 ---
+            - id: rec
+              order: 100
+              uri: http://${app.hosts.rec}:8206
+              predicates:
+                - Path=/api/search/**,/api/recommend/**
+
+          # ---------------- 跨域：统一在网关处理（业务服务 CorsConfig 保留，靠上面的去重消除双份头） ----------------
+          globalcors:
+            add-to-simple-url-handler-mapping: true
+            cors-configurations:
+              '[/**]':
+                # ★ 严禁改成 "*"：allowCredentials=true 时等于任意站点都能带 Cookie 访问
+                allowedOriginPatterns:
+                  - http://localhost:3000
+                  - http://localhost:5173
+                  - http://localhost:5174
+                  - http://127.0.0.1:3000
+                allowCredentials: true
+                allowedMethods: "*"
+                allowedHeaders: "*"
+                exposedHeaders: "*"
+                maxAge: 3600
+
+          # ---------------- 后端 HTTP 客户端 ----------------
+          httpclient:
+            connect-timeout: 3000
+            # 全局响应超时：与 Nginx proxy_read_timeout 120s 对齐；WS 路由已用 metadata 覆盖为 -1
+            response-timeout: 120s
+            websocket:
+              max-frame-payload-length: 4194304     # 4MB
+
+          # ★★ Spring Cloud 2025.0 起 X-Forwarded-* / Forwarded 默认不再透传追加。
+          #    不配这里 → 业务服务拿到的客户端 IP 是**网关自己**的 IP（影响 @RateLimit 的 IP 维度与访问日志）。
+          #    值 = 信任的代理 IP 正则：宿主机 Nginx 是 127.0.0.1；容器版见 application-docker.yml
+          #    自查：curl -s 127.0.0.1:8100/actuator/configprops | grep trusted-proxies
+          trusted-proxies: "127\\.0\\.0\\.1|0:0:0:0:0:0:0:1|172\\.\\d+\\.\\d+\\.\\d+"
+
+# =============================================================
+# 服务主机：路由 URI 统一引用 ${app.hosts.xxx}
+#   · 本地：6 个服务都在本机 → 全是 127.0.0.1
+#   · Docker：application-docker.yml 只覆盖这 6 行为 compose 服务名
+# ★ 必须是静态 HTTP 地址，不要改成 lb://isegoria-user：
+#   业务服务是 Dubbo 应用级注册（register-mode: instance），Nacos 里的实例端口是 **Dubbo 端口
+#   50051~50056**（不是 HTTP 8201~8206）→ lb:// 会把 HTTP 请求打到 tri 端口，约一半请求失败。
+#   真要用动态发现见手册 §2.4 第 2 条（业务服务注册 -http 后缀的 HTTP 实例）。
+# =============================================================
+app:
+  hosts:
+    user: 127.0.0.1
+    post: 127.0.0.1
+    interaction: 127.0.0.1
+    social: 127.0.0.1
+    notify: 127.0.0.1
+    rec: 127.0.0.1
+
+# =============================================================
+# Sa-Token：★★ 必须与 6 个业务服务的 application.yml **逐字一致**（共享登录态的根基）
+# =============================================================
+sa-token:
+  token-name: isegoria
+  timeout: 7200
+  active-timeout: 1800
+  is-concurrent: true
+  is-share: true
+  token-style: uuid
+  cookie:
+    path: /
+    secure: false          # 本地 http；Docker/生产改为 true（application-docker.yml 已覆盖）
+    http-only: true
+    same-site: Lax
+
+# =============================================================
+# 网关自身鉴权策略（由 config/GatewayAuthProperties 绑定；SaTokenGatewayConfig 消费，见手册 §6）
+# 当前尚未落这两个类，键暂不生效 —— 提前写好是为了 P2 阶段可直接开工
+#
+# ★ 白名单是「按源码注解实测」得出的，不是抄文档得来的；依据：全仓 grep
+#   @SaCheckLogin / @SaCheckRole / @SaIgnore（结果见手册 §1.2 与附录 C）
+# =============================================================
+gateway:
+  auth:
+    # blacklist（推荐，默认）：默认放行，只对 protected-paths 里"整组需要登录"的前缀做粗筛。
+    #   漏配的后果 = 该接口少了网关这层粗筛，业务服务内的 @SaCheckLogin 仍会拦住 → 不会造成线上功能不可用。
+    # whitelist：默认全拦，只放行 public-paths；漏配任何游客接口 = 该功能 401（线上事故，慎用）。
+    #   本项目鉴权粒度是"方法级注解"，而 PostController / UserController / LikeController 把公开与私有
+    #   混在同一前缀下，Sa 的 * 通配又不看 HTTP 方法 → 窄白名单表达不了，故默认 blacklist。
+    mode: blacklist
+
+    # ---------- 公开/豁免 ----------
+    # 说明：blacklist 模式下**默认就是放行**，所以下面这些不是"必需项"，而是：
+    #   ① 文档性说明（哪些接口是游客可访问的产品口径）；
+    #   ② 保护组的豁免名单（例如 /api/admin/tag/** 在保护组里，但 /hot 要豁免）。
+    public-paths:
+      # --- 全局豁免（任何模式都必须有）---
+      - /doc.html
+      - /swagger-ui.html
+      - /swagger-resources/**
+      - /v3/api-docs/**
+      - /v2/api-docs/**
+      - /webjars/**
+      - /favicon.ico
+      - /actuator/**
+      # --- WebSocket：★ 必须放行！notify 的 AuthHandshakeInterceptor 自己会校验 Cookie，
+      #     网关再拦会导致 SockJS 握手 401、前端永远连不上（手册 §8.4）---
+      - /api/ws
+      - /api/ws/**
+      # --- 登录注册（登录本身不能要求登录态；三者源码里都无鉴权注解）---
+      - /api/user/login
+      - /api/user/register
+      - /api/user/forgetPassword
+      - /api/admin/user/login
+      - /api/admin/user/register
+      - /api/admin/user/forgetPassword
+      - /api/admin/user/otherUserInfo      # UserManagerController:122 @SaIgnore
+      # --- 游客浏览：@SaIgnore 实测清单 ---
+      - /api/post/list                     # PostController:155
+      - /api/post/*                        # GET /post/{id}，PostController:171
+      - /api/post/*/view                   # PostController:198
+      - /api/comment/list                  # CommentController:70
+      - /api/comment/replies               # CommentController:82
+      - /api/boards/list                   # BoardController:56
+      - /api/admin/boards/list             # BoardManagerController:44
+      - /api/tag/hot                       # TagController:36（★ 只有 /hot 是 @SaIgnore）
+      - /api/admin/tag/hot                 # TagManagerController:36
+      - /api/recommend/feed                # RecController:47 ★ phase8 特意要求游客能刷 feed
+      - /api/search/post                   # SearchController 无注解，游客可搜
+      # --- 无类级注解、但内部会用到登录态，故**不要**放进保护组（放进去会让游客路径 401）---
+      #   /api/postLike/post/{postCode}/count   → 纯公开（点赞总数，游客详情页要显示）
+      #   /api/postLike/post/{postCode}/status  → 需登录（返回"我的"点赞态）
+      #   两者同前缀，网关模式无法区分 → 交给服务层（toggle 内部 StpUtil 会抛 NotLoginException → 40100）
+
+    # ---------- 保护组：★ 只写"整组都需要登录"的前缀 ----------
+    # 判定依据 = 类级 @SaCheckLogin / @SaCheckRole（含方法级覆盖为 @SaIgnore 的，逐个列进上面的 public-paths）
+    protected-paths:
+      # 管理端（post 域）
+      - /api/adminPost/**                  # PostManagerController：类级 @SaCheckLogin + @SaCheckRole("admin")
+      - /api/admin/audilog/**              # AuditlogController：类级 @SaCheckRole("admin")
+      - /api/admin/score-config/**         # ScoreConfigController：类级 @SaCheckRole("admin")
+      - /api/admin/sensitive-words/**      # SensitiveWordController：类级 @SaCheckRole("admin")
+      - /api/admin/tag/**                  # TagManagerController：类级 @SaCheckLogin（/hot 已豁免）
+      - /api/admin/boards/**               # BoardManagerController：类级 @SaCheckLogin（/list 已豁免）
+      # 管理端（user 域；该控制器**没有类级注解**，逐组列举）
+      - /api/admin/user/out
+      - /api/admin/user/cancel
+      - /api/admin/user/edit
+      - /api/admin/user/editPassword
+      - /api/admin/user/status             # 类级无注解，此三处是 @SaCheckRole("admin")
+      - /api/admin/user/list
+      - /api/admin/user/getUserInfo
+      # 管理端（rec 域）
+      - /api/admin/search/**               # SearchManagerController：类级 @SaCheckRole("admin")
+      # 业务整组
+      - /api/notifications/**              # NotificationController：类级 @SaCheckLogin
+      - /api/collect/**                    # CollectController：类级 @SaCheckLogin
+      - /api/userFollow/**                 # UserFollowController：类级 @SaCheckLogin
+      - /api/boardFollow/**                # BoardFollowController：类级 @SaCheckLogin
+      - /api/postImage/**                  # PostImageController：类级 @SaCheckLogin（仅 /upload）
+      - /api/comment/**                    # CommentController：类级 @SaCheckLogin（/list、/replies 已豁免）
+      - /api/tag/**                        # TagController：类级 @SaCheckLogin（/hot 已豁免）
+      - /api/recommend/**                  # RecController：类级 @SaCheckLogin（/feed 已豁免）
+
+    # ★★ 刻意**不**放进保护组的 4 个前缀（写清楚原因，防止后人"顺手加回来"）：
+    #   /api/post/**      前缀下混着公开（list / GET {id} / {id}/view）与私有（add / update / 草稿 / 分享…），
+    #                     而 Sa 的 * 通配匹配 /api/post/add 也匹配 /api/post/list → 无法只拦一半；
+    #                     好在 PostController 有干净的类级 @SaCheckLogin + 3 个 @SaIgnore，服务层本来就是权威。
+    #   /api/user/**      UserController 无类级注解，逐方法差异大（★ 另注：GET /user/userInfo 目前缺 @SaCheckLogin，
+    #                     靠内部 StpUtil.getLoginIdAsLong() 抛异常兜住，游客会拿到 40100）。
+    #   /api/boards/**    BoardController 无类级注解（写操作逐个 @SaCheckLogin），同上。
+    #   /api/postLike/**  LikeController 全无注解，且 /count 是纯公开的游客接口。
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway,prometheus
+  endpoint:
+    health:
+      show-details: never
+    gateway:
+      access: read_only        # 允许 GET /actuator/gateway/routes（排查路由），禁止 POST 改路由
+
+logging:
+  level:
+    root: info
+    com.ruwei: info
+    org.springframework.cloud.gateway: info
+    # 排查"这条请求命中了哪个 route"时打开
+    # org.springframework.cloud.gateway.handler.RoutePredicateHandlerMapping: debug
