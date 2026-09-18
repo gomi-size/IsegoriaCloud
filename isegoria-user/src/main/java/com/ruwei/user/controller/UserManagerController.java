@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.*;
  * 用户的基础管理
  */
 @RestController
-@RequestMapping("/amin/user")
+@RequestMapping("/admin/user")
 public class UserManagerController {
 
     @Resource

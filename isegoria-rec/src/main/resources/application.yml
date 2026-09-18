@@ -56,6 +56,8 @@ cors:
     - http://localhost:5174
     - http://127.0.0.1:3000
 
+
+
 # ===== Dubbo（六服务差异仅 protocol.port：50051~50056）=====
 dubbo:
   application:
@@ -117,3 +119,28 @@ knife4j:
   enable: true
   setting:
     language: zh_cn
+
+rec:
+  # ---- 精排：pScore = hotScore × (1 + α·tagAffinity + β·typeAffinity + γ·boardAffinity) ----
+  fine:
+    topic: 0.3          # α 标签亲和系数（rec.fine.topic）
+    type: 0.2           # β 内容形态亲和系数（rec.fine.type）
+    board: 0.1          # γ 板块亲和系数（rec.fine.board）
+    cold-floor: 1.0     # 冷启动帖精排保底分（rec.fine.cold-floor）：新帖无互动时保证能进首屏
+  # ---- 粗排 ----
+  rough:
+    top: 300            # 热度截断：候选按 score 降序保留 Top N（rec.rough.top）
+  # ---- 召回五路上限 ----
+  recall:
+    follow-limit: 200   # 路① 关注流上限（rec.recall.follow-limit）
+    board-limit: 200    # 路② 板块流上限（rec.recall.board-limit）
+    hot-limit: 100      # 路③ 热点流上限（rec.recall.hot-limit）
+    tag-limit: 150      # 路④ 标签流上限（rec.recall.tag-limit）
+    cold-limit: 100     # 路⑤ 冷启动上限（rec.recall.cold-limit）
+  # ---- 冷启动 ----
+  cold:
+    window-hours: 72    # 冷启动召回窗口（小时，rec.cold.window-hours）：先审后发审核有延迟，24h→72h 防新帖召回错过
+    view-threshold: 50  # viewCount 低于该值视为新帖候选（rec.cold.view-threshold）
+  # ---- 兴趣信号强度（RecInterestConsumer）----
+  interest:
+    view-delta: 0.2     # 浏览弱信号增量；点赞/评论/分享为 1.0 强信号（rec.interest.view-delta）

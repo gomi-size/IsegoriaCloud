@@ -111,12 +111,7 @@ public class EsSearchService {
                 .withHighlightQuery(buildHighlight())
                 .build();
 
-        /*long start = System.currentTimeMillis();*/
         SearchHits<PostDoc> hits = operations.search(query, PostDoc.class);
-/*
-        log.info("ES 搜索 keyword={} boardId={} type={} sort={} 命中 {} 条，耗时 {}ms",
-                keyword, boardId, type, sort, hits.getTotalHits(), System.currentTimeMillis() - start);
-*/
 
         List<PostBrowseVO> list = new ArrayList<>();
         for (SearchHit<PostDoc> hit : hits) {
@@ -139,8 +134,6 @@ public class EsSearchService {
         page.setTotal(hits.getTotalHits());
 
         // 批量填充板块对象 + 话题标签：交给 post 侧现成的两个 Filler（Dubbo 一次往返搞定）
-        // ⚠️ 必须接收返回值：Dubbo 跨进程传的是副本，post 侧的原地修改不会传回本进程；
-        //    写成 innerPostService.fillBoardAndTags(list); （当 void 用）会编译通过但 board/tags 全空
         List<PostBrowseVO> filled = innerPostService.fillBoardAndTags(list);
         if (filled != null) {
             list = filled;
